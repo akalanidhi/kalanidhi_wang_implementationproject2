@@ -58,7 +58,7 @@ class Geometry:
     """helper functions (imported from the course template)."""
  
     @staticmethod
-    def is_ccw(p1: Point, p2: Point, p3: Point) -> int:
+    def isCCW(p1: Point, p2: Point, p3: Point) -> int:
         """
         returns 0 if p1, p2, p3 are collinear,
                 -1 if p1 -> p2 -> p3 -> p1 is CCW,
