@@ -45,12 +45,13 @@ class Endpoint:
         kind = "birth" if self.is_birth else "death"
         return f"Endpoint({self.point}, {self.segment}, {kind})"
 
-    def _det(a, b) -> float:
+
+def _det(a, b):
     """ returns cross product of vectors a and b, given as (x, y) tuples."""
     return a[0] * b[1] - a[1] * b[0]
  
  
-    def _subtract(a, b):
+def _subtract(a, b):
     """returns vector between 2 points, given as (x, y) tuples."""
     return (a[0] - b[0], a[1] - b[1])
 
@@ -65,7 +66,7 @@ class Geometry:
                 +1 if p1 -> p2 -> p3 -> p1 is CW.
         """
         val = (p2.x - p1.x) * (p3.y - p2.y) - (p2.y - p1.y) * (p3.x - p2.x)
-        if val == 0:
+        if val == 0:            # may need to add error margin
             return 0
         return -1 if val > 0 else 1
  
@@ -101,3 +102,39 @@ class Geometry:
         if 0 <= t <= 1 and 0 <= u <= 1:
             return Point(p[0] + t * r[0], p[1] + t * r[1])
         return Point(-1, -1)
+
+
+    @staticmethod
+    def y_at_x(seg: Segment, x: float) -> float:
+        """
+        returns the y-coordinate where the segment crosses
+        the vertical line x = constant.
+        """
+
+        if abs(seg.A.x - seg.B.x) == 0:
+            return min(seg.A.y, seg.B.y)
+
+        t = (x - seg.A.x) / (seg.B.x - seg.A.x)
+        return seg.A.y + t * (seg.B.y - seg.A.y)
+
+    @staticmethod
+    def compare_rays(s1: Segment, s2: Segment, sweep_x: float) -> int:
+        """
+        compare two segments at the current sweep line.
+
+        returns:
+            -1 if s1 is below s2
+             1 if s1 is above s2
+             0 if they coincide
+        """
+
+        y1 = Geometry.y_at_x(s1, sweep_x)
+        y2 = Geometry.y_at_x(s2, sweep_x)
+
+        if abs(y1 - y2) == 0:
+            # Tie-break using ids so ordering stays consistent
+            if s1.id == s2.id:
+                return 0
+            return -1 if s1.id < s2.id else 1
+
+        return -1 if y1 < y2 else 1
