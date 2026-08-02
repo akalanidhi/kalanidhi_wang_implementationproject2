@@ -207,15 +207,39 @@ class EventsHeap(MinHeap):
         return heap
  
  
-class SegmentHeap(MinHeap): ##basis, ff to edit
-    
+class SegmentHeap(MinHeap):
+
     def __init__(self, Q: Point):
         self.Q = Q
         super().__init__(self._closer_to_Q)
- 
+
+    def _ray_hits_segment(self, P: Point, seg: Segment) -> bool:
+        """
+        True if the ray Q->P (extended) passes between seg.A and seg.B,
+        i.e. the line QP separates the two endpoints of seg.
+        """
+        c1 = Geometry.isCCW(self.Q, P, seg.A)
+        c2 = Geometry.isCCW(self.Q, P, seg.B)
+        return c1 != 0 and c2 != 0 and c1 != c2
+
     def _closer_to_Q(self, s1: Segment, s2: Segment) -> bool:
-        
- 
+        """
+        returns True if s1 crosses the ray r closer to Q than s2 does.
+        Only valid when both s1 and s2 currently cross r.
+        """
+        for p in (s1.A, s1.B):
+            if self._ray_hits_segment(p, s2):
+                side_Q = Geometry.isCCW(s2.A, s2.B, self.Q)
+                side_p = Geometry.isCCW(s2.A, s2.B, p)
+                return side_Q == side_p  # p hasn't crossed s2's line -> s1 closer
+
+        for p in (s2.A, s2.B):
+            if self._ray_hits_segment(p, s1):
+                side_Q = Geometry.isCCW(s1.A, s1.B, self.Q)
+                side_p = Geometry.isCCW(s1.A, s1.B, p)
+                return side_Q != side_p  # p HAS crossed s1's line -> s1 closer
+
+        raise ValueError("segments do not both cross the current ray r")
+
     def sees_root(self, segment: Segment) -> bool:
-        
- 
+        return not self.is_empty() and self._data[0] is segment

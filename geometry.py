@@ -32,6 +32,11 @@ class Segment:
     def __repr__(self):
         return f"s{self.id}[{self.A} -> {self.B}]"
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Segment):
+            return NotImplemented
+        return self.id == other.id
+
 class Endpoint:
     """
     endpoint = one event in the sweep, either a birth (A) or death (B) of a segment

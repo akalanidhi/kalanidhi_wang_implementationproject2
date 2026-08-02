@@ -16,6 +16,10 @@ startPoint = None
 insertMode = False
 queryMode = False
 
+seenPoints = []      # endpoints that Q currently sees, from runAlgorithm()
+showVisibility = False  # toggled by 'v'
+
+
 def setup():
     py5.size(WINDOW, WINDOW)
 
@@ -41,16 +45,57 @@ def draw():
         py5.circle(s.A.x, s.A.y, 6)
         py5.circle(s.B.x, s.B.y, 6)
 
+    # visibility segments (blue dotted lines from Q to each seen endpoint)
+    if showVisibility and Q is not None:
+
+        py5.stroke(0, 0, 255)
+        py5.no_fill()
+
+        for p in seenPoints:
+            _draw_dotted_line(Q.x, Q.y, p.x, p.y)
+
+        py5.stroke(0)
+
     # observer
     if Q is not None:
 
-        py5.fill(255,0,0)
-        py5.circle(Q.x,Q.y,10)
+        py5.fill(255, 0, 0)
+        py5.circle(Q.x, Q.y, 10)
+
+
+def _draw_dotted_line(x1, y1, x2, y2, dash_len=6, gap_len=4):
+##draws a dotted line from (x1,y1) to (x2,y2), since py5 has no built-in dashed stroke
+    dist = math.hypot(x2 - x1, y2 - y1)
+
+    if dist == 0:
+        return
+
+    dx = (x2 - x1) / dist
+    dy = (y2 - y1) / dist
+
+    travelled = 0.0
+    drawing = True
+
+    while travelled < dist:
+
+        seg_len = dash_len if drawing else gap_len
+        next_travelled = min(travelled + seg_len, dist)
+
+        if drawing:
+            py5.line(
+                x1 + dx * travelled, y1 + dy * travelled,
+                x1 + dx * next_travelled, y1 + dy * next_travelled
+            )
+
+        travelled = next_travelled
+        drawing = not drawing
+
 
 def mouse_clicked():
 ##mouse input. if o is clicked --> mouse input becomes point. if Q is clicked --> becomes query point
     global startPoint
     global Q
+    global seenPoints
 
     if insertMode:
 
@@ -69,13 +114,13 @@ def mouse_clicked():
             )
 
             segments.append(
-                Segment(startPoint,endPoint)
+                Segment(startPoint, endPoint)
             )
 
             startPoint = None
 
             if Q is not None:
-                runAlgorithm(Q,segments)
+                seenPoints = runAlgorithm(Q, segments)
 
     elif queryMode:
 
@@ -84,12 +129,15 @@ def mouse_clicked():
             py5.mouse_y
         )
 
-        runAlgorithm(Q,segments)
+        seenPoints = runAlgorithm(Q, segments)
+
 
 def key_pressed():
-##keyboard input. if o clicked --> enter insertMode. if q clicked --> query mode
+##keyboard input. if o clicked --> enter insertMode. if q clicked --> query mode. if v clicked --> toggle visibility display
     global insertMode
     global queryMode
+    global showVisibility
+    global seenPoints
 
     if py5.key == 'o':
 
@@ -105,13 +153,24 @@ def key_pressed():
 
         print("Query mode")
 
+    elif py5.key == 'v':
+
+        if Q is not None:
+            seenPoints = runAlgorithm(Q, segments)
+            showVisibility = True
+            print(f"Showing visibility: {len(seenPoints)} endpoint(s) seen")
+        else:
+            print("Set Q first before viewing visibility")
+
     elif py5.key == 'r':
 
         readData("input.txt")
 
+
 def readData(filename):
 ##creates Point and Segment objects and then run runAlgorithm()
     global Q
+    global seenPoints
 
     segments.clear()
 
@@ -140,7 +199,7 @@ def readData(filename):
                 )
 
                 segments.append(
-                    Segment(A,B)
+                    Segment(A, B)
                 )
 
             elif parts[0] == "q":
@@ -151,7 +210,7 @@ def readData(filename):
                 )
 
     if Q is not None:
-        runAlgorithm(Q,segments)
+        seenPoints = runAlgorithm(Q, segments)
 
 
 py5.run_sketch()
