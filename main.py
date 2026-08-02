@@ -1,5 +1,5 @@
-##GUI file
-import py5
+##GUI file (pygame version)
+import pygame
 import math
 
 from geometry import Point, Segment
@@ -19,52 +19,46 @@ queryMode = False
 seenPoints = []      # endpoints that Q currently sees, from runAlgorithm()
 showVisibility = False  # toggled by 'v'
 
+BACKGROUND = (230, 230, 230)
+BLACK = (0, 0, 0)
+BLUE = (0, 0, 255)
+RED = (255, 0, 0)
 
-def setup():
-    py5.size(WINDOW, WINDOW)
 
-
-def draw():
-    py5.background(230)
-
-    py5.stroke(0)
-    py5.fill(0)
+def draw(screen):
+    screen.fill(BACKGROUND)
 
     # unfinished segment
     if startPoint is not None:
-        py5.circle(startPoint.x, startPoint.y, 6)
+        pygame.draw.circle(screen, BLACK, (int(startPoint.x), int(startPoint.y)), 3)
 
     # finished segments
     for s in segments:
 
-        py5.line(
-            s.A.x, s.A.y,
-            s.B.x, s.B.y
+        pygame.draw.line(
+            screen, BLACK,
+            (s.A.x, s.A.y),
+            (s.B.x, s.B.y)
         )
 
-        py5.circle(s.A.x, s.A.y, 6)
-        py5.circle(s.B.x, s.B.y, 6)
+        pygame.draw.circle(screen, BLACK, (int(s.A.x), int(s.A.y)), 3)
+        pygame.draw.circle(screen, BLACK, (int(s.B.x), int(s.B.y)), 3)
 
     # visibility segments (blue dotted lines from Q to each seen endpoint)
     if showVisibility and Q is not None:
 
-        py5.stroke(0, 0, 255)
-        py5.no_fill()
-
         for p in seenPoints:
-            _draw_dotted_line(Q.x, Q.y, p.x, p.y)
-
-        py5.stroke(0)
+            _draw_dotted_line(screen, Q.x, Q.y, p.x, p.y)
 
     # observer
     if Q is not None:
+        pygame.draw.circle(screen, RED, (int(Q.x), int(Q.y)), 5)
 
-        py5.fill(255, 0, 0)
-        py5.circle(Q.x, Q.y, 10)
+    pygame.display.flip()
 
 
-def _draw_dotted_line(x1, y1, x2, y2, dash_len=6, gap_len=4):
-##draws a dotted line from (x1,y1) to (x2,y2), since py5 has no built-in dashed stroke
+def _draw_dotted_line(screen, x1, y1, x2, y2, dash_len=6, gap_len=4):
+##draws a dotted line from (x1,y1) to (x2,y2)
     dist = math.hypot(x2 - x1, y2 - y1)
 
     if dist == 0:
@@ -82,16 +76,17 @@ def _draw_dotted_line(x1, y1, x2, y2, dash_len=6, gap_len=4):
         next_travelled = min(travelled + seg_len, dist)
 
         if drawing:
-            py5.line(
-                x1 + dx * travelled, y1 + dy * travelled,
-                x1 + dx * next_travelled, y1 + dy * next_travelled
+            pygame.draw.line(
+                screen, BLUE,
+                (x1 + dx * travelled, y1 + dy * travelled),
+                (x1 + dx * next_travelled, y1 + dy * next_travelled)
             )
 
         travelled = next_travelled
         drawing = not drawing
 
 
-def mouse_clicked():
+def mouse_clicked(mx, my):
 ##mouse input. if o is clicked --> mouse input becomes point. if Q is clicked --> becomes query point
     global startPoint
     global Q
@@ -101,17 +96,11 @@ def mouse_clicked():
 
         if startPoint is None:
 
-            startPoint = Point(
-                py5.mouse_x,
-                py5.mouse_y
-            )
+            startPoint = Point(mx, my)
 
         else:
 
-            endPoint = Point(
-                py5.mouse_x,
-                py5.mouse_y
-            )
+            endPoint = Point(mx, my)
 
             segments.append(
                 Segment(startPoint, endPoint)
@@ -124,36 +113,33 @@ def mouse_clicked():
 
     elif queryMode:
 
-        Q = Point(
-            py5.mouse_x,
-            py5.mouse_y
-        )
+        Q = Point(mx, my)
 
         seenPoints = runAlgorithm(Q, segments)
 
 
-def key_pressed():
+def key_pressed(key):
 ##keyboard input. if o clicked --> enter insertMode. if q clicked --> query mode. if v clicked --> toggle visibility display
     global insertMode
     global queryMode
     global showVisibility
     global seenPoints
 
-    if py5.key == 'o':
+    if key == pygame.K_o:
 
         insertMode = True
         queryMode = False
 
         print("Obstacle mode")
 
-    elif py5.key == 'q':
+    elif key == pygame.K_q:
 
         queryMode = True
         insertMode = False
 
         print("Query mode")
 
-    elif py5.key == 'v':
+    elif key == pygame.K_v:
 
         if Q is not None:
             seenPoints = runAlgorithm(Q, segments)
@@ -162,7 +148,7 @@ def key_pressed():
         else:
             print("Set Q first before viewing visibility")
 
-    elif py5.key == 'r':
+    elif key == pygame.K_r:
 
         readData("input.txt")
 
@@ -213,4 +199,33 @@ def readData(filename):
         seenPoints = runAlgorithm(Q, segments)
 
 
-py5.run_sketch()
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode((WINDOW, WINDOW))
+    pygame.display.set_caption("Visibility Sweep")
+    clock = pygame.time.Clock()
+
+    running = True
+
+    while running:
+
+        for event in pygame.event.get():
+
+            if event.type == pygame.QUIT:
+                running = False
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mx, my = event.pos
+                mouse_clicked(mx, my)
+
+            elif event.type == pygame.KEYDOWN:
+                key_pressed(event.key)
+
+        draw(screen)
+        clock.tick(60)
+
+    pygame.quit()
+
+
+if __name__ == "__main__":
+    main()
