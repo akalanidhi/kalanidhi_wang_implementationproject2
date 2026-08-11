@@ -6,7 +6,10 @@ from geometry import Point, Segment
 from sweep import runAlgorithm
 
 ##global variables
-WINDOW = 512
+CANVAS = 512
+BAR_HEIGHT = 50
+WINDOW_W = CANVAS
+WINDOW_H = CANVAS + BAR_HEIGHT
 
 segments = []
 Q = None
@@ -20,9 +23,32 @@ seenPoints = []      # endpoints that Q currently sees, from runAlgorithm()
 showVisibility = False  # toggled by 'v'
 
 BACKGROUND = (230, 230, 230)
+BAR_BG = (200, 200, 200)
+BUTTON_BG = (255, 255, 255)
+BUTTON_ACTIVE = (180, 210, 255)
 BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)
 RED = (255, 0, 0)
+
+font = None  # set in main() after pygame.init()
+
+##buttons live in the bar below the canvas, each maps to a mode key
+buttons = [
+    {"rect": pygame.Rect(10, CANVAS + 8, 90, 34), "label": "Obstacle", "key": "o"},
+    {"rect": pygame.Rect(110, CANVAS + 8, 90, 34), "label": "Query", "key": "q"},
+    {"rect": pygame.Rect(210, CANVAS + 8, 90, 34), "label": "Visibility", "key": "v"},
+    {"rect": pygame.Rect(310, CANVAS + 8, 90, 34), "label": "Read File", "key": "r"},
+]
+
+
+def current_mode_text():
+##returns a string describing the active mode, for display in the bar
+    if insertMode:
+        return "Mode: Obstacle"
+    elif queryMode:
+        return "Mode: Query"
+    else:
+        return "Mode: None"
 
 
 def draw(screen):
@@ -54,7 +80,34 @@ def draw(screen):
     if Q is not None:
         pygame.draw.circle(screen, RED, (int(Q.x), int(Q.y)), 5)
 
+    draw_bar(screen)
+
     pygame.display.flip()
+
+
+def draw_bar(screen):
+##draws the bottom control bar: buttons + current mode text
+    pygame.draw.rect(screen, BAR_BG, (0, CANVAS, WINDOW_W, BAR_HEIGHT))
+
+    for b in buttons:
+
+        active = (
+            (b["key"] == "o" and insertMode) or
+            (b["key"] == "q" and queryMode) or
+            (b["key"] == "v" and showVisibility)
+        )
+
+        color = BUTTON_ACTIVE if active else BUTTON_BG
+
+        pygame.draw.rect(screen, color, b["rect"])
+        pygame.draw.rect(screen, BLACK, b["rect"], 1)
+
+        label_surf = font.render(b["label"], True, BLACK)
+        label_rect = label_surf.get_rect(center=b["rect"].center)
+        screen.blit(label_surf, label_rect)
+
+    mode_surf = font.render(current_mode_text(), True, BLACK)
+    screen.blit(mode_surf, (410, CANVAS + 17))
 
 
 def _draw_dotted_line(screen, x1, y1, x2, y2, dash_len=6, gap_len=4):
@@ -87,7 +140,24 @@ def _draw_dotted_line(screen, x1, y1, x2, y2, dash_len=6, gap_len=4):
 
 
 def mouse_clicked(mx, my):
-##mouse input. if o is clicked --> mouse input becomes point. if Q is clicked --> becomes query point
+##mouse input. clicks in the bottom bar hit buttons; clicks on the canvas place points
+    if my >= CANVAS:
+        button_clicked(mx, my)
+    else:
+        canvas_clicked(mx, my)
+
+
+def button_clicked(mx, my):
+##checks the bar buttons for a hit and dispatches to the same handler as key_pressed
+    for b in buttons:
+
+        if b["rect"].collidepoint(mx, my):
+            key_pressed(b["key"], from_button=True)
+            return
+
+
+def canvas_clicked(mx, my):
+##mouse input on the canvas. if o is active --> mouse input becomes point. if Q is active --> becomes query point
     global startPoint
     global Q
     global seenPoints
@@ -118,37 +188,46 @@ def mouse_clicked(mx, my):
         seenPoints = runAlgorithm(Q, segments)
 
 
-def key_pressed(key):
-##keyboard input. if o clicked --> enter insertMode. if q clicked --> query mode. if v clicked --> toggle visibility display
+def key_pressed(key, from_button=False):
+##keyboard (or button) input. if o clicked --> enter insertMode. if q clicked --> query mode. if v clicked --> toggle visibility display
     global insertMode
     global queryMode
     global showVisibility
     global seenPoints
 
-    if key == pygame.K_o:
+    ##pygame key constants come through for real keypresses, plain strings come through from buttons
+    if not from_button:
+        key = {
+            pygame.K_o: "o",
+            pygame.K_q: "q",
+            pygame.K_v: "v",
+            pygame.K_r: "r",
+        }.get(key)
+
+    if key == "o":
 
         insertMode = True
         queryMode = False
 
         print("Obstacle mode")
 
-    elif key == pygame.K_q:
+    elif key == "q":
 
         queryMode = True
         insertMode = False
 
         print("Query mode")
 
-    elif key == pygame.K_v:
+    elif key == "v":
 
         if Q is not None:
             seenPoints = runAlgorithm(Q, segments)
-            showVisibility = True
+            showVisibility = not showVisibility if from_button else True
             print(f"Showing visibility: {len(seenPoints)} endpoint(s) seen")
         else:
             print("Set Q first before viewing visibility")
 
-    elif key == pygame.K_r:
+    elif key == "r":
 
         readData("input.txt")
 
@@ -200,10 +279,16 @@ def readData(filename):
 
 
 def main():
+    global font
+
     pygame.init()
-    screen = pygame.display.set_mode((WINDOW, WINDOW))
+    pygame.font.init()
+
+    screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
     pygame.display.set_caption("Visibility Sweep")
     clock = pygame.time.Clock()
+
+    font = pygame.font.SysFont(None, 22)
 
     running = True
 
