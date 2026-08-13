@@ -1,10 +1,8 @@
-##GUI file (pygame version)
 import pygame
 import math
 
 from geometry import Point, Segment
-from sweep import runAlgorithm
-
+import sweep
 ##global variables
 CANVAS = 512
 BAR_HEIGHT = 50
@@ -56,19 +54,19 @@ def draw(screen):
 
     # unfinished segment
     if startPoint is not None:
-        pygame.draw.circle(screen, BLACK, (int(startPoint.x), int(startPoint.y)), 3)
+        pygame.draw.circle(screen, BLACK, (int(startPoint.x), CANVAS - int(startPoint.y)), 3)
 
     # finished segments
     for s in segments:
 
         pygame.draw.line(
             screen, BLACK,
-            (s.A.x, s.A.y),
-            (s.B.x, s.B.y)
+            (s.A.x, CANVAS - s.A.y),
+            (s.B.x, CANVAS - s.B.y)
         )
 
-        pygame.draw.circle(screen, BLACK, (int(s.A.x), int(s.A.y)), 3)
-        pygame.draw.circle(screen, BLACK, (int(s.B.x), int(s.B.y)), 3)
+        pygame.draw.circle(screen, BLACK, (int(s.A.x), CANVAS - int(s.A.y)), 3)
+        pygame.draw.circle(screen, BLACK, (int(s.B.x), CANVAS - int(s.B.y)), 3)
 
     # visibility segments (blue dotted lines from Q to each seen endpoint)
     if showVisibility and Q is not None:
@@ -78,7 +76,7 @@ def draw(screen):
 
     # observer
     if Q is not None:
-        pygame.draw.circle(screen, RED, (int(Q.x), int(Q.y)), 5)
+        pygame.draw.circle(screen, RED, (int(Q.x), CANVAS - int(Q.y)), 5)
 
     draw_bar(screen)
 
@@ -129,10 +127,14 @@ def _draw_dotted_line(screen, x1, y1, x2, y2, dash_len=6, gap_len=4):
         next_travelled = min(travelled + seg_len, dist)
 
         if drawing:
+            # Convert mathematical Y to Pygame Screen Y
+            py1 = CANVAS - (y1 + dy * travelled)
+            py2 = CANVAS - (y1 + dy * next_travelled)
+            
             pygame.draw.line(
                 screen, BLUE,
-                (x1 + dx * travelled, y1 + dy * travelled),
-                (x1 + dx * next_travelled, y1 + dy * next_travelled)
+                (x1 + dx * travelled, py1),
+                (x1 + dx * next_travelled, py2)
             )
 
         travelled = next_travelled
@@ -162,15 +164,16 @@ def canvas_clicked(mx, my):
     global Q
     global seenPoints
 
+    # Convert Pygame Screen Y to Mathematical Y
+    cy = CANVAS - my
+
     if insertMode:
 
         if startPoint is None:
-
-            startPoint = Point(mx, my)
+            startPoint = Point(mx, cy)
 
         else:
-
-            endPoint = Point(mx, my)
+            endPoint = Point(mx, cy)
 
             segments.append(
                 Segment(startPoint, endPoint)
@@ -179,14 +182,13 @@ def canvas_clicked(mx, my):
             startPoint = None
 
             if Q is not None:
-                seenPoints = runAlgorithm(Q, segments)
+                seenPoints = sweep.runAlgorithm(Q, segments)
 
     elif queryMode:
 
-        Q = Point(mx, my)
+        Q = Point(mx, cy)
 
-        seenPoints = runAlgorithm(Q, segments)
-
+        seenPoints = sweep.runAlgorithm(Q, segments)
 
 def key_pressed(key, from_button=False):
 ##keyboard (or button) input. if o clicked --> enter insertMode. if q clicked --> query mode. if v clicked --> toggle visibility display
@@ -221,7 +223,7 @@ def key_pressed(key, from_button=False):
     elif key == "v":
 
         if Q is not None:
-            seenPoints = runAlgorithm(Q, segments)
+            seenPoints = sweep.runAlgorithm(Q, segments)
             showVisibility = not showVisibility if from_button else True
             print(f"Showing visibility: {len(seenPoints)} endpoint(s) seen")
         else:
@@ -275,7 +277,7 @@ def readData(filename):
                 )
 
     if Q is not None:
-        seenPoints = runAlgorithm(Q, segments)
+        seenPoints = sweep.runAlgorithm(Q, segments)
 
 
 def main():
