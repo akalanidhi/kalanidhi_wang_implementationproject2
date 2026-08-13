@@ -2,9 +2,16 @@ from typing import List, Callable
 from geometry import Point, Segment, Endpoint, Geometry
 
 class MinHeap:
-    """Generic min heap. comparator(a, b) should return True when a belongs before b."""
+    """
+    Generic min heap.
+
+    comparator(a, b) should return True when a belongs before b.
+    Tracks indices of elements via a dictionary to support O(log n) removals.
+    """
+
     def __init__(self, comparator: Callable[[object, object], bool]):
         self._data: List[object] = []
+        self._indices: dict = {}  # Tracks item -> index
         self._before = comparator
 
     def is_empty(self) -> bool:
@@ -15,8 +22,18 @@ class MinHeap:
             raise IndexError("Heap is empty")
         return self._data[0]
 
+    def _swap(self, i: int, j: int) -> None:
+        """Swaps elements in the array and updates their tracked indices."""
+        item_i = self._data[i]
+        item_j = self._data[j]
+        
+        self._data[i], self._data[j] = item_j, item_i
+        self._indices[item_i] = j
+        self._indices[item_j] = i
+
     def insert(self, item) -> None:
         self._data.append(item)
+        self._indices[item] = len(self._data) - 1
         self._sift_up(len(self._data) - 1)
 
     def extract_min(self):
@@ -25,26 +42,40 @@ class MinHeap:
 
         minimum = self._data[0]
         last = self._data.pop()
+        del self._indices[minimum]
 
         if self._data:
             self._data[0] = last
+            self._indices[last] = 0
             self._sift_down(0)
 
         return minimum
 
     def remove(self, item) -> None:
-        try:
-            i = self._data.index(item)
-        except ValueError:
+        """
+        Remove one occurrence of item from the heap in O(log n) time.
+        """
+        if item not in self._indices:
             return
-
+            
+        i = self._indices[item] # O(1) lookup
+        
         last_index = len(self._data) - 1
+
+        # If removing the last element, we just pop and are done.
         if i == last_index:
             self._data.pop()
+            del self._indices[item]
             return
 
-        self._data[i] = self._data.pop()
+        # Replace removed element with the last element.
+        last_item = self._data.pop()
+        del self._indices[item]
+        
+        self._data[i] = last_item
+        self._indices[last_item] = i
 
+        # Decide which direction the replacement needs to move.
         if i > 0:
             parent = (i - 1) // 2
             if self._before(self._data[i], self._data[parent]):
@@ -57,7 +88,7 @@ class MinHeap:
         while i > 0:
             parent = (i - 1) // 2
             if self._before(self._data[i], self._data[parent]):
-                self._data[i], self._data[parent] = (self._data[parent], self._data[i])
+                self._swap(i, parent)
                 i = parent
             else:
                 break
@@ -69,16 +100,22 @@ class MinHeap:
             right = 2 * i + 2
             smallest = i
 
-            if left < n and self._before(self._data[left], self._data[smallest]):
+            if (
+                left < n
+                and self._before(self._data[left], self._data[smallest])
+            ):
                 smallest = left
 
-            if right < n and self._before(self._data[right], self._data[smallest]):
+            if (
+                right < n
+                and self._before(self._data[right], self._data[smallest])
+            ):
                 smallest = right
 
             if smallest == i:
                 break
 
-            self._data[i], self._data[smallest] = (self._data[smallest], self._data[i])
+            self._swap(i, smallest)
             i = smallest
 
 class EventsHeap(MinHeap):
